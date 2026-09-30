@@ -1,6 +1,6 @@
 # DUPLO 10427 bonding test
 
-A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data cable and the train are needed. It tests BLE connection, encryption, bonding, bond persistence, horn playback, and light colours. It sends no motor commands.
+A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data cable and the train are needed. It tests BLE connection, encryption, bonding, bond persistence, horn playback, and light colours. It now includes explicitly requested two-second motor tests.
 
 ## Install and upload with Arduino IDE
 
@@ -50,6 +50,8 @@ A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data
 
 | Command | Action |
 | --- | --- |
+| `w` / `v` | Forward +50 / reverse -50 power for two seconds |
+| `x` | Stop motor and cancel queued movement |
 | `c` | Connect to the stored peer, or scan and pair if there are no bonds |
 | `s` | Print bond storage and current security status |
 | `1` / `2` / `3` | Set the train light to white / green / red |
@@ -80,6 +82,24 @@ Upload this sketch without erasing flash, reconnect, then send `1` (white), `2` 
 
 Light colour values come from the [10427 reference colour mapping](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/types.rs). A successful write does not prove the light changed; this test needs visual confirmation.
 
+## Next test: movement
+
+Verified light controls are saved in commit `b6e9b1d`. Upload this version without erasing flash or changing partitions.
+
+1. For the first test, hold the train with its drive wheels clear of the surface. Keep its power button accessible.
+2. Connect with `c` if needed. The sketch writes a motor stop after securing each connection; it never resumes a previous run.
+3. Send `w`: a stop is written first, followed by a nonblocking 300 ms pause, then +50 motor power. After two seconds the ESP32 writes stop.
+4. Send `v` for the same test at -50 power. Observe that the wheels turn in the opposite direction.
+5. Send `w`, then send `x` before the timer expires to check manual stop. `x` also cancels movement during the 300 ms pause.
+6. Send `w`, then `v` while moving to check stop-before-reverse. Each new movement command stops the previous run before the pause and next run.
+7. Once wheel-up tests pass, repeat on clear track. Confirm physical stopping; a successful BLE write is not motor feedback.
+
+`w` and `v` use fixed power values, not measured speed. Each command starts a new two-second run. While a movement or stop retry is active, other commands are rejected so they cannot delay stop with a BLE discovery or disconnect operation. Send `x` before using lights, horn, disconnect, restart, or bond deletion. `0` still means **light off**, not motor stop.
+
+A failed stop write is retried every 250 ms while connected. This is an ESP32-side timer, not a train-side watchdog: USB power loss, BLE loss, or a blocked BLE call can prevent or delay stop. If the train keeps moving, use its power button. Connection-loss behaviour is not yet verified; do not unplug the controller while testing on track.
+
+Motor packets follow the [10427 command encoder](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/protocol/commands.rs), using port `0x32` and signed power. The user reported all movement tests working on the real train.
+
 ## Limits and troubleshooting
 
 - This is a diagnostic sketch, not the remote firmware. It makes one startup reconnection attempt; subsequent attempts require `c`. Scanning and security negotiation temporarily block serial command processing.
@@ -87,7 +107,7 @@ Light colour values come from the [10427 reference colour mapping](https://githu
 - Stored-peer reconnection uses its saved identity address. If first pairing works but reconnecting fails, record the addresses and error codes; address privacy/resolution may need investigation rather than repeatedly clearing bonds.
 - Blank monitor: check USB CDC settings, the selected port and data cable, press RESET, or send `h`. The sketch waits at most five seconds for the monitor.
 - No hub found: wake the train, close the phone app, and retry `c`. Multiple hubs found: turn off the others.
-- Hearing the horn verifies this LWP3 action. Motor control and what happens when a moving train loses connection remain separate hardware tests.
+- Hearing the horn verifies this LWP3 action. The user confirmed the movement tests; connection-loss behaviour remains unverified.
 
 ## References and validation
 
@@ -100,3 +120,7 @@ Light colour values come from the [10427 reference colour mapping](https://githu
 The updated sketch compiled successfully with Arduino IDE's bundled CLI, ESP32 core 3.3.12, and NimBLE-Arduino 2.5.1, using the S3 settings above. The user confirmed bonding, horn playback, and successful reconnection with horn playback after an ESP32 power cycle on the real train.
 
 The user also confirmed white, green, red, and light-off controls on the train.
+
+Movement build: compilation passed with ESP32 core 3.3.12 and NimBLE-Arduino 2.5.1 (565,221 bytes flash; 32,884 bytes global RAM). A temporary host harness exercised the actual movement functions with simulated time and BLE writes: timed stop, queued-movement cancellation, stop-before-reverse, failed-stop retry, disconnect cancellation, and timer rollover passed. This does not replace testing the physical motor or BLE failure behaviour.
+
+Hardware result: the user reported all movement tests working. Connection-loss and controller-power-loss behaviour have not been separately confirmed.

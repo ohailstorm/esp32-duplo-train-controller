@@ -1,11 +1,22 @@
 #include <Arduino.h>
+#include <atomic>
 #include <NimBLEDevice.h>
 
 // Waveshare ESP32-S3-Zero; NimBLE-Arduino 2.5.1.
-// Bonding, horn, and light test: this sketch never sends motor commands.
+// BLE diagnostics with short, explicitly requested movement tests.
 static const NimBLEUUID trainService("00001623-1212-efde-1623-785feabcd123");
 static const NimBLEUUID trainCharacteristic("00001624-1212-efde-1623-785feabcd123");
 static NimBLEClient* client = nullptr;
+static std::atomic<bool> disconnected{false};
+static bool motorMayBeRunning = false;
+static int8_t pendingPower = 0;
+static uint32_t movementStarted = 0;
+static uint32_t stopWrittenAt = 0;
+static uint32_t lastStopAttempt = 0;
+static constexpr uint32_t movementDurationMs = 2000;
+static constexpr uint32_t directionPauseMs = 300;
+
+bool stopMotor();
 
 void printStatus() {
   Serial.printf("Stored bonds: %d\n", NimBLEDevice::getNumBonds());
@@ -25,6 +36,7 @@ void printStatus() {
 
 class ConnectionCallbacks : public NimBLEClientCallbacks {
   void onDisconnect(NimBLEClient*, int reason) override {
+    disconnected.store(true);
     Serial.printf("Disconnected; BLE reason=%d. Send c to reconnect.\n", reason);
   }
 };
@@ -87,35 +99,38 @@ void connectTrain() {
     return;
   }
   Serial.println("PASS: encrypted and bonded connection. Check persistence after a power cycle.");
+  stopMotor(); // Never resume previous movement on reconnect.
   printStatus();
 }
 
-void writeTrainCommand(const uint8_t* packet, size_t length, const char* label) {
+bool writeTrainCommand(const uint8_t* packet, size_t length, const char* label) {
   if (!client->isConnected()) {
     Serial.println("Not connected. Send c first.");
-    return;
+    return false;
   }
   const auto info = client->getConnInfo();
   if (!info.isEncrypted() || !info.isBonded()) {
     Serial.println("Commands require an encrypted, bonded connection.");
-    return;
+    return false;
   }
   // Resolve on each command so reconnects cannot leave a stale cached pointer.
   auto* service = client->getService(trainService);
   auto* characteristic = service ? service->getCharacteristic(trainCharacteristic) : nullptr;
   if (!characteristic) {
     Serial.println("LEGO command characteristic not found.");
-    return;
+    return false;
   }
   if (!characteristic->canWrite() && !characteristic->canWriteNoResponse()) {
     Serial.println("LEGO command characteristic is not writable.");
-    return;
+    return false;
   }
   if (characteristic->writeValue(packet, length, characteristic->canWrite())) {
     Serial.printf("%s frame written. Confirm the effect on the train.\n", label);
+    return true;
   } else {
     Serial.printf("%s write failed. Send s to check the connection.\n", label);
   }
+  return false;
 }
 
 void playHorn() {
@@ -133,7 +148,63 @@ void setLight(uint8_t color) {
   writeTrainCommand(light, sizeof(light), "Light");
 }
 
+bool writeMotor(int8_t power) {
+  // LWP3 motor port 0x32, direct mode 0; signed power -100..100.
+  const uint8_t packet[] = {0x08, 0x00, 0x81, 0x32, 0x11, 0x51,
+                            0x00, static_cast<uint8_t>(power)};
+  return writeTrainCommand(packet, sizeof(packet), power == 0 ? "Stop" : "Motor");
+}
+
+bool stopMotor() {
+  pendingPower = 0;
+  lastStopAttempt = millis();
+  if (!writeMotor(0)) {
+    // Keep the stop retry active: a failed write does not prove the motor stopped.
+    motorMayBeRunning = true;
+    movementStarted = millis() - movementDurationMs;
+    Serial.println("Stop not confirmed by BLE write. Check the train; turn it off if needed.");
+    return false;
+  }
+  motorMayBeRunning = false;
+  stopWrittenAt = millis();
+  return true;
+}
+
+void requestMovement(int8_t power) {
+  if (!client->isConnected()) {
+    Serial.println("Not connected. Send c first.");
+    return;
+  }
+  // Stop before every run, including direction changes. The pause is nonblocking.
+  if (!stopMotor()) return;
+  pendingPower = power;
+  Serial.printf("Queued motor power %d for 2 seconds after a 300 ms stop pause.\n", power);
+}
+
+void serviceMovement() {
+  if (disconnected.exchange(false) || !client->isConnected()) {
+    if (motorMayBeRunning || pendingPower != 0) {
+      Serial.println("Link lost: cannot send stop. Check the train and turn it off if still moving.");
+    }
+    motorMayBeRunning = false;
+    pendingPower = 0;
+    return;
+  }
+  if (motorMayBeRunning && millis() - movementStarted >= movementDurationMs &&
+      millis() - lastStopAttempt >= 250) {
+    stopMotor();
+  }
+  if (pendingPower != 0 && millis() - stopWrittenAt >= directionPauseMs) {
+    const int8_t power = pendingPower;
+    pendingPower = 0;
+    motorMayBeRunning = true; // Even a failed write may have reached the hub.
+    movementStarted = millis();
+    if (!writeMotor(power)) stopMotor();
+  }
+}
+
 void printHelp() {
+  Serial.println("Movement: w=forward +50, v=reverse -50 (2 seconds), x=STOP");
   Serial.println("Commands: c=connect/pair, s=status, b=horn, 1=white, 2=green, 3=red, 0=light off, d=disconnect, f=forget bonds, r=restart, h=help");
 }
 
@@ -141,7 +212,7 @@ void setup() {
   Serial.begin(115200);
   const uint32_t started = millis();
   while (!Serial && millis() - started < 5000) delay(10);
-  Serial.println("\nDUPLO 10427 bonding test (no motor commands)");
+  Serial.println("\nDUPLO 10427 BLE test (movement only on w/v)");
   if (!NimBLEDevice::init("DuploBondTest")) {
     Serial.println("BLE initialization failed. Restart the board.");
     while (true) delay(1000);
@@ -162,8 +233,20 @@ void setup() {
 }
 
 void loop() {
+  serviceMovement();
   if (Serial.available()) {
-    switch (Serial.read()) {
+    const char command = Serial.read();
+    // Avoid other blocking BLE operations while a timed movement/stop is active.
+    if ((motorMayBeRunning || pendingPower != 0) &&
+        command != 'x' && command != 'w' && command != 'v' &&
+        command != '\r' && command != '\n' && command != ' ') {
+      Serial.println("Movement active. Send x to stop before other commands.");
+      return;
+    }
+    switch (command) {
+      case 'w': requestMovement(50); break;
+      case 'v': requestMovement(-50); break;
+      case 'x': stopMotor(); break;
       case 'c': connectTrain(); break;
       case 's': printStatus(); break;
       case 'b': playHorn(); break;
