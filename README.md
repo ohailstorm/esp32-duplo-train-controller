@@ -47,6 +47,8 @@ No motor driver is required: the ESP32 communicates directly with the train hub 
 
 The first standalone experiment is [the BLE bonding test](experiments/bonding_test/README.md), with a single Arduino sketch and ESP32-S3-Zero setup/upload instructions. Keep small hardware experiments under `experiments/`; the eventual controller firmware can live separately under `firmware/`.
 
+Bonding, power-cycle reconnection, horn, basic lights, and timed movement tests have now been reported working. See the [physical-button test plan and command choices](docs/physical-button-plan.md) for the next breadboard experiment and possible four-button layouts.
+
 1. Start with a USB-connected Waveshare ESP32-S3-Zero as the test board and virtual buttons through a serial terminal. No potentiometer, physical buttons, or enclosure are needed for the first test. Provide commands for pairing and re-pairing, forward and reverse at a selected speed, stop, and the four functions. Print clear connection status and errors. Make stop a simple, immediate command, and send stop before changing direction.
 2. Implement and test BLE bonding with the 10427, persistent reconnection after a restart, and LWP3 commands using the real train. Check what the train does if the connection drops while moving. If needed, add recurring safety stops or another suitable mechanism before using the physical remote.
 3. Build the same source code for the XIAO ESP32-C3 and pair the train again with that board. Adapt the board's pin assignments and LED, and confirm bonding, reconnection, stop, and direction changes on the XIAO too. BLE bonds stored on the S3 do not transfer to the C3.
