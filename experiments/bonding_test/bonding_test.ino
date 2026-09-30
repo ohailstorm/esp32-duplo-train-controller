@@ -2,7 +2,7 @@
 #include <NimBLEDevice.h>
 
 // Waveshare ESP32-S3-Zero; NimBLE-Arduino 2.5.1.
-// Bonding and horn test: this sketch never sends motor commands.
+// Bonding, horn, and light test: this sketch never sends motor commands.
 static const NimBLEUUID trainService("00001623-1212-efde-1623-785feabcd123");
 static const NimBLEUUID trainCharacteristic("00001624-1212-efde-1623-785feabcd123");
 static NimBLEClient* client = nullptr;
@@ -90,14 +90,14 @@ void connectTrain() {
   printStatus();
 }
 
-void playHorn() {
+void writeTrainCommand(const uint8_t* packet, size_t length, const char* label) {
   if (!client->isConnected()) {
     Serial.println("Not connected. Send c first.");
     return;
   }
   const auto info = client->getConnInfo();
   if (!info.isEncrypted() || !info.isBonded()) {
-    Serial.println("Horn requires an encrypted, bonded connection.");
+    Serial.println("Commands require an encrypted, bonded connection.");
     return;
   }
   // Resolve on each command so reconnects cannot leave a stale cached pointer.
@@ -111,18 +111,30 @@ void playHorn() {
     Serial.println("LEGO command characteristic is not writable.");
     return;
   }
-  // LWP3 multi-port horn action, from the 10427 reference implementation.
-  const uint8_t horn[] = {0x0B, 0x00, 0x81, 0x34, 0x11, 0x51,
-                          0x01, 0x07, 0x01, 0x00, 0x00};
-  if (characteristic->writeValue(horn, sizeof(horn), characteristic->canWrite())) {
-    Serial.println("Horn frame written. Confirm that you hear the horn.");
+  if (characteristic->writeValue(packet, length, characteristic->canWrite())) {
+    Serial.printf("%s frame written. Confirm the effect on the train.\n", label);
   } else {
-    Serial.println("Horn write failed. Send s to check the connection.");
+    Serial.printf("%s write failed. Send s to check the connection.\n", label);
   }
 }
 
+void playHorn() {
+  // LWP3 multi-port horn action, from the 10427 reference implementation.
+  const uint8_t horn[] = {0x0B, 0x00, 0x81, 0x34, 0x11, 0x51,
+                          0x01, 0x07, 0x01, 0x00, 0x00};
+  writeTrainCommand(horn, sizeof(horn), "Horn");
+}
+
+void setLight(uint8_t color) {
+  // 10427 colour IDs: off=0x00, white=0x01, green=0x07, red=0x0C.
+  const uint8_t light[] = {0x0B, 0x00, 0x81, 0x34, 0x11, 0x51,
+                           0x01, 0x04, 0x01, color, 0x00};
+  Serial.printf("Requesting light colour 0x%02X.\n", color);
+  writeTrainCommand(light, sizeof(light), "Light");
+}
+
 void printHelp() {
-  Serial.println("Commands: c=connect/pair, s=status, b=horn, d=disconnect, f=forget bonds, r=restart, h=help");
+  Serial.println("Commands: c=connect/pair, s=status, b=horn, 1=white, 2=green, 3=red, 0=light off, d=disconnect, f=forget bonds, r=restart, h=help");
 }
 
 void setup() {
@@ -155,6 +167,10 @@ void loop() {
       case 'c': connectTrain(); break;
       case 's': printStatus(); break;
       case 'b': playHorn(); break;
+      case '1': setLight(0x01); break;
+      case '2': setLight(0x07); break;
+      case '3': setLight(0x0C); break;
+      case '0': setLight(0x00); break;
       case 'd':
         if (client->isConnected()) client->disconnect();
         break;

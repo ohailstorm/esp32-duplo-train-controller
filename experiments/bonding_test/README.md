@@ -1,6 +1,6 @@
 # DUPLO 10427 bonding test
 
-A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data cable and the train are needed. It tests BLE connection, encryption, bonding, bond persistence, and a horn command. It sends no motor commands.
+A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data cable and the train are needed. It tests BLE connection, encryption, bonding, bond persistence, horn playback, and light colours. It sends no motor commands.
 
 ## Install and upload with Arduino IDE
 
@@ -28,7 +28,7 @@ A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data
    Leave other settings at their defaults. These settings target the S3-Zero, not the later XIAO ESP32-C3.
 6. Connect the board with a **USB data cable**. Select its port under **Tools → Port**; on macOS it normally looks like `/dev/cu.usbmodem...`.
 7. Click **Verify**, then **Upload**. If the board is not detected or upload stalls: hold **BOOT**, press and release **RESET**, then release **BOOT**. Select the newly appearing port and upload again. If needed, unplug the board and reconnect it while holding BOOT, then release BOOT.
-8. After upload, press **RESET** if the sketch does not start. Open **Serial Monitor** at **115200 baud**. Select the port again if it changed after flashing. Either newline setting works; commands are single lowercase characters.
+8. After upload, press **RESET** if the sketch does not start. Open **Serial Monitor** at **115200 baud**. Select the port again if it changed after flashing. Either newline setting works; commands are single characters (letters are lowercase).
 
 ## Run the test
 
@@ -52,6 +52,8 @@ A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data
 | --- | --- |
 | `c` | Connect to the stored peer, or scan and pair if there are no bonds |
 | `s` | Print bond storage and current security status |
+| `1` / `2` / `3` | Set the train light to white / green / red |
+| `0` | Turn the train light off |
 | `b` | Play the horn (requires an encrypted, bonded connection) |
 | `d` | Disconnect; retain the bond |
 | `f` | Disconnect and delete **all ESP32-side BLE bonds** |
@@ -71,6 +73,13 @@ The initial bonding-only version is saved in commit `b319775`. The user confirme
 
 The packet uses the [10427 reference implementation's horn action](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/protocol/commands.rs). No sound is sent automatically at startup.
 
+## Next test: lights
+
+The working horn and power-cycle checkpoint is commit `f84ebf7`.
+Upload this sketch without erasing flash, reconnect, then send `1` (white), `2` (green), `3` (red), and `0` (off), one at a time. Observe the train light after each command. `b` still plays the horn. No light or sound command runs automatically.
+
+Light colour values come from the [10427 reference colour mapping](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/types.rs). A successful write does not prove the light changed; this test needs visual confirmation.
+
 ## Limits and troubleshooting
 
 - This is a diagnostic sketch, not the remote firmware. It makes one startup reconnection attempt; subsequent attempts require `c`. Scanning and security negotiation temporarily block serial command processing.
@@ -88,4 +97,6 @@ The packet uses the [10427 reference implementation's horn action](https://githu
 - [NimBLE security and bond-storage API](https://github.com/h2zero/NimBLE-Arduino/blob/2.3.6/src/NimBLEDevice.h)
 - [10427 bonding background](https://github.com/micschr0/duplo-train-10427-ble2mqtt)
 
-The updated sketch compiled successfully with Arduino IDE's bundled CLI, ESP32 core 3.3.12, and NimBLE-Arduino 2.5.1, using the S3 settings above (563,585 bytes flash; 32,868 bytes global RAM). The user confirmed bonding, horn playback, and successful reconnection with horn playback after an ESP32 power cycle on the real train.
+The updated sketch compiled successfully with Arduino IDE's bundled CLI, ESP32 core 3.3.12, and NimBLE-Arduino 2.5.1, using the S3 settings above. The user confirmed bonding, horn playback, and successful reconnection with horn playback after an ESP32 power cycle on the real train.
+
+The user also confirmed white, green, red, and light-off controls on the train.
