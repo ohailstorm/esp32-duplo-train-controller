@@ -8,7 +8,7 @@ Continue initial breadboard experiments on the USB-powered Waveshare ESP32-S3-Ze
 
 This is a plan, not new button firmware. The current sketch only reads serial commands.
 
-The user has a breadboard for these tests. A purple-action toggle is also a candidate, pending protocol verification; see [purple action-brick research](purple-action-brick-research.md). That research includes an event-subscription lead from a 10428 project, not a confirmed purple toggle for 10427.
+The user has a breadboard for these tests. A purple-action toggle is also a candidate, pending protocol verification; see [purple action-brick research](purple-action-brick-research.md). That research now includes published purple preset configuration packets and a project reporting 10427 support. Immediate playback and cancellation still need testing.
 
 ## Commands available to build on
 
@@ -21,6 +21,7 @@ These are capabilities in our sketch or the linked 10427 implementation, not an 
 | Light colour/off | White, green, red, off tested | Toggle white/off or cycle a chosen palette |
 | Other colours | Reference lists yellow, light/dark blue, purple, purple-pink, light-pink, red-pink | Additional palette entries after testing |
 | Speaker sounds | Reference IDs: brake 3, station departure 5, water refill 7, horn 9, steam 10 | Dedicated sound or cycle through sounds; direct speaker route still untested here |
+| Purple preset selection | Published configuration IDs for night, birthday, beach, rain, cat, recorded, and nothing; untested here | Cycle presets or provisionally toggle a selected action; cancellation not established |
 | Battery request | Reference has request encoder; no local notification handling yet | Status display rather than a dedicated function button |
 | Speedometer subscription | Reference supports speed notifications; needs port discovery/parsing | Diagnostics rather than a function button |
 

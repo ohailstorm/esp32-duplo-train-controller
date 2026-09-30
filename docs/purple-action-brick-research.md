@@ -4,9 +4,39 @@ Research date: 2026-09-30. Target: DUPLO 10427, standalone ESP32 controller.
 
 ## Conclusion
 
-No verified BLE command for starting/stopping the purple action-brick mode, or enabling/disabling all action-brick reactions, was found in the sources inspected. These are separate features; neither is established by setting the headlight purple. Keep a purple-function button provisional.
+The deeper GitHub API search found published purple-action configuration packets. The earlier conclusion that no mapping was available was incomplete. Preset selection now has a concrete implementation to test; immediate playback and an on/off toggle remain unverified on our train.
 
-LEGO confirms the customization brick supports sounds recorded with its app, but does not document the BLE mechanism or where audio playback occurs in that product description. This does not establish standalone playback/upload support for our ESP32. [LEGO 10427](https://www.lego.com/en-us/product/interactive-adventure-train-10427)
+The user confirmed lullaby and Happy Birthday in the iPhone app. LEGO's Data Act notice also says clips up to five seconds can be transferred to the train. That establishes transfer capability, not its BLE encoding. [LEGO product information](https://www.lego.com/en-za/product/interactive-adventure-train-10427)
+
+## Published purple-action configuration
+
+[drndos' project](https://github.com/drndos/duplo-train-controller) explicitly describes reverse-engineering captured BLE traffic and controlling the purple brick. [JanHouwers/LDTrainRemote](https://github.com/JanHouwers/LDTrainRemote) credits that work and reports testing its action-sound cycle on 10427.
+
+The original [packet table](https://github.com/drndos/duplo-train-controller/blob/main/duplo_nimble.ino) labels these as violet action-block configurations:
+
+```text
+0B 00 81 34 11 51 01 06 01 ID 00
+```
+
+| ID (hex) | Source label |
+| --- | --- |
+| 00 | Nothing |
+| 01 | Beach |
+| 02 | Cat |
+| 03 | Night |
+| 04 | Birthday |
+| 05 | Rain |
+| 06 | Recorded sound |
+
+These target port `0x34`, mode `1`, opcode `0x0106`. Night is a plausible match for lullaby, but that identification needs listening. Nothing is a candidate for disabling the assigned action, not proof that it cancels active playback. Recorded sound selects a slot; this is not an audio-upload packet. Do not substitute these IDs into the separate speaker or horn commands.
+
+The existing 10427 reference has an [open issue about this bank](https://github.com/micschr0/duplo-train-10427-ble2mqtt/issues/1), explaining why it was absent from its implemented command list. Its uncertainty about model support is supplemented by JanHouwers' explicit 10427 report; our hardware verification is still needed.
+
+## Search scope and limitations
+
+In addition to web searches, GitHub repository searches for `duplo 10427` and `duplo 10428`, plus issue search for `duplo purple`, surfaced the links above. YellowLemon1/DuploTrain2025 and stasfeelin/duplo-train were also inspected as leads; neither supplied the purple mapping used here. JanHouwers has two different repositories: the older `duplo-train-controller` targets 10874/10875, while `LDTrainRemote` explicitly targets 10427. Confusing these would miss the useful implementation.
+
+This search found a practical configuration route, not an exhaustive proof about all possible train commands. No iPhone capture is required before testing these published packets.
 
 ## Useful new lead: observing action bricks
 
@@ -34,10 +64,10 @@ The reference encodes direct speaker sounds as `08 00 81 01 11 51 01 <id>`, with
 
 ## Next investigation
 
-1. Create a separate event-logging experiment; retain the tested bonding/movement sketch unchanged. Subscribe to characteristic notifications and inspect attached-port announcements before trying the EVENTS subscription above. Log raw frames with timestamps and handle fragmented messages.
-2. With drive wheels lifted, present the real purple brick to the sensor. Compare notifications with other bricks and record when the physical sound/light/motor sequence starts and ends. Do not assume a completion notification exists.
-3. Separately connect the official app and check whether it offers a direct trigger or stop for the effect. If it does, capture that interaction using Android Bluetooth HCI logging. Capture one action at a time and distinguish configuration writes from playback controls. The app and ESP32 should be tested in separate BLE sessions.
-4. Only promote an observed outbound command to a test after establishing its target, payload, effect, and stop behaviour on 10427. A received sensor event is not evidence of an equivalent writable command.
-5. Decide the intended button behaviour: trigger the effect once, toggle a persistent effect, or toggle reactions to track bricks. If the hub offers no equivalent, an ESP32-managed light/sound sequence is an approximation and should be labelled as such.
+1. Add a separate, explicit serial test for IDs `03`, `04`, and `00`. Keep existing motion controls unchanged and drive wheels clear. Send one configuration packet and first observe whether it plays immediately.
+2. Present the real purple brick after each selection. Compare night with the app's lullaby, birthday with Happy Birthday, and nothing with the baseline. Record whether the setting survives reconnect and train restart.
+3. During an effect, test whether ID `00` cancels it or only changes future brick encounters. Do not label this command Stop until verified. Motor stop and effect cancellation must remain separate.
+4. If configuration works but direct playback does not, inspect notifications and use the iPhone/Mac PacketLogger capture route to investigate the app's trigger/stop operations. Do not replay received sensor events as commands.
+5. Choose a button behaviour based on results: cycle presets, toggle the brick's configured action, or toggle immediate playback if supported. Keep recorded audio out of the first test.
 
 No experimental packets were added to firmware or sent to the train during this research.
