@@ -1,9 +1,10 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 
-// Waveshare ESP32-S3-Zero; NimBLE-Arduino 2.3.6.
-// Bonding only: this sketch never sends motor commands.
+// Waveshare ESP32-S3-Zero; NimBLE-Arduino 2.5.1.
+// Bonding and horn test: this sketch never sends motor commands.
 static const NimBLEUUID trainService("00001623-1212-efde-1623-785feabcd123");
+static const NimBLEUUID trainCharacteristic("00001624-1212-efde-1623-785feabcd123");
 static NimBLEClient* client = nullptr;
 
 void printStatus() {
@@ -89,8 +90,39 @@ void connectTrain() {
   printStatus();
 }
 
+void playHorn() {
+  if (!client->isConnected()) {
+    Serial.println("Not connected. Send c first.");
+    return;
+  }
+  const auto info = client->getConnInfo();
+  if (!info.isEncrypted() || !info.isBonded()) {
+    Serial.println("Horn requires an encrypted, bonded connection.");
+    return;
+  }
+  // Resolve on each command so reconnects cannot leave a stale cached pointer.
+  auto* service = client->getService(trainService);
+  auto* characteristic = service ? service->getCharacteristic(trainCharacteristic) : nullptr;
+  if (!characteristic) {
+    Serial.println("LEGO command characteristic not found.");
+    return;
+  }
+  if (!characteristic->canWrite() && !characteristic->canWriteNoResponse()) {
+    Serial.println("LEGO command characteristic is not writable.");
+    return;
+  }
+  // LWP3 multi-port horn action, from the 10427 reference implementation.
+  const uint8_t horn[] = {0x0B, 0x00, 0x81, 0x34, 0x11, 0x51,
+                          0x01, 0x07, 0x01, 0x00, 0x00};
+  if (characteristic->writeValue(horn, sizeof(horn), characteristic->canWrite())) {
+    Serial.println("Horn frame written. Confirm that you hear the horn.");
+  } else {
+    Serial.println("Horn write failed. Send s to check the connection.");
+  }
+}
+
 void printHelp() {
-  Serial.println("Commands: c=connect/pair, s=status, d=disconnect, f=forget bonds, r=restart, h=help");
+  Serial.println("Commands: c=connect/pair, s=status, b=horn, d=disconnect, f=forget bonds, r=restart, h=help");
 }
 
 void setup() {
@@ -122,6 +154,7 @@ void loop() {
     switch (Serial.read()) {
       case 'c': connectTrain(); break;
       case 's': printStatus(); break;
+      case 'b': playHorn(); break;
       case 'd':
         if (client->isConnected()) client->disconnect();
         break;

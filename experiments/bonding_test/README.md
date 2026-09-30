@@ -1,6 +1,6 @@
 # DUPLO 10427 bonding test
 
-A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data cable and the train are needed. It tests BLE connection, encryption, bonding, and bond persistence. It sends no motor, light, or sound commands.
+A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data cable and the train are needed. It tests BLE connection, encryption, bonding, bond persistence, and a horn command. It sends no motor commands.
 
 ## Install and upload with Arduino IDE
 
@@ -11,7 +11,7 @@ A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data
    https://espressif.github.io/arduino-esp32/package_esp32_index.json
    ```
 
-3. In Boards Manager, install **esp32 by Espressif Systems**, version **3.3.0**. In Library Manager, install **NimBLE-Arduino by h2zero**, version **2.3.6**. These are the intended dependency versions, not a claim of a verified build.
+3. In Boards Manager, install **esp32 by Espressif Systems**, version **3.3.12**. In Library Manager, install **NimBLE-Arduino by h2zero**, version **2.5.1**. These match the locally verified build.
 4. Open `bonding_test.ino` from this folder. Keep the sketch inside the matching `bonding_test` folder.
 5. Select **Tools → Board → esp32 → ESP32S3 Dev Module**. Set:
 
@@ -52,12 +52,24 @@ A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data
 | --- | --- |
 | `c` | Connect to the stored peer, or scan and pair if there are no bonds |
 | `s` | Print bond storage and current security status |
+| `b` | Play the horn (requires an encrypted, bonded connection) |
 | `d` | Disconnect; retain the bond |
 | `f` | Disconnect and delete **all ESP32-side BLE bonds** |
 | `r` | Restart the ESP32; retain the bond |
 | `h` | Print command help |
 
 NimBLE stores ESP32 bonds in flash (NVS). Do not erase flash or change partitions during the persistence test. `f` does not delete the train's copy of the bond. If fresh pairing fails, power-cycle the train, close other BLE clients, and retry; record the printed error if it still fails.
+
+## Next test: horn
+
+The initial bonding-only version is saved in commit `b319775`. The user confirmed the initial connection, horn playback, and horn playback again after an ESP32 power cycle on the real train.
+
+1. Upload the updated sketch with **Erase All Flash Before Sketch Upload disabled**, keeping the same partition scheme to retain the bond.
+2. Wake the train. Open Serial Monitor at **115200 baud**. Send `c` if it did not reconnect automatically, then `s` to check encryption and bonding.
+3. Send **`b`** once. You should hear the horn. The message `Horn frame written` only reports a successful BLE write, not confirmation that the train played the sound.
+4. If the write succeeds but the train is silent, save the serial output. Do not clear the bond as the first troubleshooting step.
+
+The packet uses the [10427 reference implementation's horn action](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/protocol/commands.rs). No sound is sent automatically at startup.
 
 ## Limits and troubleshooting
 
@@ -66,7 +78,7 @@ NimBLE stores ESP32 bonds in flash (NVS). Do not erase flash or change partition
 - Stored-peer reconnection uses its saved identity address. If first pairing works but reconnecting fails, record the addresses and error codes; address privacy/resolution may need investigation rather than repeatedly clearing bonds.
 - Blank monitor: check USB CDC settings, the selected port and data cable, press RESET, or send `h`. The sketch waits at most five seconds for the monitor.
 - No hub found: wake the train, close the phone app, and retry `c`. Multiple hubs found: turn off the others.
-- This test does not verify LWP3 command acceptance or what happens when a moving train loses connection. Those are separate hardware tests.
+- Hearing the horn verifies this LWP3 action. Motor control and what happens when a moving train loses connection remain separate hardware tests.
 
 ## References and validation
 
@@ -76,4 +88,4 @@ NimBLE stores ESP32 bonds in flash (NVS). Do not erase flash or change partition
 - [NimBLE security and bond-storage API](https://github.com/h2zero/NimBLE-Arduino/blob/2.3.6/src/NimBLEDevice.h)
 - [10427 bonding background](https://github.com/micschr0/duplo-train-10427-ble2mqtt)
 
-The sketch's API calls were checked against NimBLE-Arduino 2.3.6 headers. Arduino IDE and its bundled CLI are available on this Mac, but the ESP32 board package and Arduino libraries were not found in their default locations. Compilation and physical testing have not been performed; install the dependencies above and click Verify before uploading.
+The updated sketch compiled successfully with Arduino IDE's bundled CLI, ESP32 core 3.3.12, and NimBLE-Arduino 2.5.1, using the S3 settings above (563,585 bytes flash; 32,868 bytes global RAM). The user confirmed bonding, horn playback, and successful reconnection with horn playback after an ESP32 power cycle on the real train.
