@@ -1,10 +1,10 @@
 # Purple action brick: research notes
 
-Research date: 2026-09-30. Target: DUPLO 10427, standalone ESP32 controller.
+Research date: 2026-09-30. Button behaviour clarified: 2026-10-01. Target: DUPLO 10427, standalone ESP32 controller.
 
 ## Conclusion
 
-The deeper GitHub API search found published purple-action configuration packets. The earlier conclusion that no mapping was available was incomplete. Preset selection now has a concrete implementation to test; immediate playback and an on/off toggle remain unverified on our train.
+The deeper GitHub API search found published purple-action configuration packets. The earlier conclusion that no mapping was available was incomplete. Preset selection now has a concrete implementation to test. The user clarified that “toggle” means selecting the next preset in the list on each press, wrapping to the first after the last. Immediate playback and cancellation are not requirements for this button.
 
 The user confirmed lullaby and Happy Birthday in the iPhone app. LEGO's Data Act notice also says clips up to five seconds can be transferred to the train. That establishes transfer capability, not its BLE encoding. [LEGO product information](https://www.lego.com/en-za/product/interactive-adventure-train-10427)
 
@@ -62,12 +62,15 @@ The author also reports that repeated throttle writes interfere with action-bric
 
 The reference encodes direct speaker sounds as `08 00 81 01 11 51 01 <id>`, with brake=3, departure=5, refill=7, horn=9, steam=10. Our verified horn uses a different multi-port route; these speaker commands remain untested here. Its purple light packet is `0B 00 81 34 11 51 01 04 01 0A 00`, which only requests a colour. [Encoders](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/protocol/commands.rs), [IDs](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/types.rs)
 
-## Next investigation
+## Next test and button behaviour
 
-1. Add a separate, explicit serial test for IDs `03`, `04`, and `00`. Keep existing motion controls unchanged and drive wheels clear. Send one configuration packet and first observe whether it plays immediately.
-2. Present the real purple brick after each selection. Compare night with the app's lullaby, birthday with Happy Birthday, and nothing with the baseline. Record whether the setting survives reconnect and train restart.
-3. During an effect, test whether ID `00` cancels it or only changes future brick encounters. Do not label this command Stop until verified. Motor stop and effect cancellation must remain separate.
-4. If configuration works but direct playback does not, inspect notifications and use the iPhone/Mac PacketLogger capture route to investigate the app's trigger/stop operations. Do not replay received sensor events as commands.
-5. Choose a button behaviour based on results: cycle presets, toggle the brick's configured action, or toggle immediate playback if supported. Keep recorded audio out of the first test.
+1. Test the published configuration command over serial, starting with night (`03`) and birthday (`04`), with drive wheels clear. Observe any immediate effect, then present the real purple brick to check the selected behaviour. Confirm whether night matches the app's lullaby.
+2. Test the remaining presets individually. Treat source labels as provisional until observed on our train. Recorded sound selects an existing recording; it does not upload one. Leave that slot out of the initial cycle unless a usable recording is present.
+3. Build an explicit ordered list of the presets that pass. Each debounced short press selects the next entry, wrapping at the end. The published ID order is not necessarily the app's display order; keep the cycle order configurable.
+4. Print the requested preset name and ID. Advance the local index only after a successful BLE write, and distinguish write success from observed train behaviour. A held button must not repeat. A press while disconnected must not silently advance the selection or queue a stale command.
+5. After reconnect, treat the train's current preset as unknown unless readback is established. The next press should select a defined first entry rather than claim to know the app's last choice. Separately check persistence across train restart.
+6. If these published commands fail or have different effects, use event logging or the iPhone/Mac PacketLogger route for further diagnosis. Capture is a fallback, not a prerequisite for this preset-cycle test.
+
+The intended physical button changes the purple brick's selected action. It is not a play/pause button or a toggle for all track-brick reactions. Preset order and the final four-button assignment remain provisional.
 
 No experimental packets were added to firmware or sent to the train during this research.

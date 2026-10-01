@@ -8,7 +8,7 @@ Continue initial breadboard experiments on the USB-powered Waveshare ESP32-S3-Ze
 
 This is a plan, not new button firmware. The current sketch only reads serial commands.
 
-The user has a breadboard for these tests. A purple-action toggle is also a candidate, pending protocol verification; see [purple action-brick research](purple-action-brick-research.md). That research now includes published purple preset configuration packets and a project reporting 10427 support. Immediate playback and cancellation still need testing.
+The user has a breadboard for these tests. A purple-preset cycle button is also a candidate: each press selects the next preset and wraps at the end; see [purple action-brick research](purple-action-brick-research.md). That research now includes published purple preset configuration packets and a project reporting 10427 support. Preset selection needs testing on our train; playback/cancellation controls are not required for this button.
 
 ## Commands available to build on
 
@@ -21,7 +21,7 @@ These are capabilities in our sketch or the linked 10427 implementation, not an 
 | Light colour/off | White, green, red, off tested | Toggle white/off or cycle a chosen palette |
 | Other colours | Reference lists yellow, light/dark blue, purple, purple-pink, light-pink, red-pink | Additional palette entries after testing |
 | Speaker sounds | Reference IDs: brake 3, station departure 5, water refill 7, horn 9, steam 10 | Dedicated sound or cycle through sounds; direct speaker route still untested here |
-| Purple preset selection | Published configuration IDs for night, birthday, beach, rain, cat, recorded, and nothing; untested here | Cycle presets or provisionally toggle a selected action; cancellation not established |
+| Purple preset selection | Published configuration IDs for night, birthday, beach, rain, cat, recorded, and nothing; untested here | Select next preset per press, wrap at end; use only verified entries |
 | Battery request | Reference has request encoder; no local notification handling yet | Status display rather than a dedicated function button |
 | Speedometer subscription | Reference supports speed notifications; needs port discovery/parsing | Diagnostics rather than a function button |
 
@@ -72,6 +72,7 @@ Acceptance for the first BLE button prototype: one action per press; no action o
 | --- | --- | --- | --- | --- |
 | Initial bench test, no lever | Horn | Light toggle | Forward pulse | Stop |
 | Suggested final layout with lever | Horn | Light toggle/cycle | Water refill | Stop, optionally brake sound |
+| Purple-preset alternative with lever | Horn | Light toggle/cycle | Next purple preset | Stop |
 | Sound-focused alternative with lever | Horn | Station departure | Water refill or steam | Stop |
 
 Start with short presses only. Add long presses only for a clear need, such as cycling colours or intentional pairing at startup. Keep the physical labels provisional until the sounds and handling have been tried.
