@@ -4,6 +4,13 @@
 
 All work in Codex should be in English: prompts, plans, responses, code, file and folder names, identifiers, comments, serial commands and status messages, tests, technical documentation, and commit messages. Conversation in this ChatGPT project may remain in Swedish.
 
+## Tests and guides
+
+- [Physical button test: wiring, upload, and checks](experiments/button_input_test/README.md) — start here for your breadboard; supports S3-Zero and XIAO ESP32-C3.
+- [BLE bonding, horn, lights, and movement test](experiments/bonding_test/README.md).
+- [Purple action brick: preset commands and research](docs/purple-action-brick-research.md).
+- [Button assignments and next-stage plan](docs/physical-button-plan.md).
+
 ## Goals and decisions
 
 A handheld, standalone remote based on the Printables model below, adapted for LEGO Duplo 10427. The ESP32 board, potentiometer, and buttons fit in the same enclosure and control the train directly over BLE. No Raspberry Pi, Zigbee, Home Assistant, or MQTT is required for operation. Start with USB-C connected to an external 5 V supply, such as an existing power bank or USB adapter, while choosing a board and reserving space for a possible internal battery later. Use a Bambu Lab P2S Combo for printing.

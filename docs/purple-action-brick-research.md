@@ -2,6 +2,8 @@
 
 Research date: 2026-09-30. Button behaviour clarified: 2026-10-01. Target: DUPLO 10427, standalone ESP32 controller.
 
+For wiring and uploading the physical button test, see the [breadboard guide](../experiments/button_input_test/README.md). That sketch tests inputs only. First test the preset packets through `p` in the [virtual-button BLE experiment](../experiments/bonding_test/README.md#next-test-purple-action-brick-presets-virtual-button), then add physical BLE button integration.
+
 ## Conclusion
 
 The deeper GitHub API search found published purple-action configuration packets. The earlier conclusion that no mapping was available was incomplete. Preset selection now has a concrete implementation to test. The user clarified that “toggle” means selecting the next preset in the list on each press, wrapping to the first after the last. Immediate playback and cancellation are not requirements for this button.

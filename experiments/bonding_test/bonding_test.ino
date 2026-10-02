@@ -16,6 +16,15 @@ static uint32_t lastStopAttempt = 0;
 static constexpr uint32_t movementDurationMs = 2000;
 static constexpr uint32_t directionPauseMs = 300;
 
+// Experimental purple-brick configuration, not immediate sound playback.
+// Source: github.com/drndos/duplo-train-controller/blob/main/duplo_nimble.ino
+static constexpr uint8_t purplePresetIds[] = {0x03, 0x04, 0x01, 0x05, 0x02, 0x00};
+static const char* const purplePresetNames[] = {
+  "Night (possible lullaby)", "Birthday", "Beach", "Rain", "Cat", "Nothing"
+};
+static constexpr size_t purplePresetCount = sizeof(purplePresetIds) / sizeof(purplePresetIds[0]);
+static size_t nextPurplePreset = 0;
+
 bool stopMotor();
 
 void printStatus() {
@@ -48,6 +57,9 @@ void connectTrain() {
     return;
   }
 
+  // No preset readback: start the local cycle at Night on each connection attempt.
+  // This does not change the train's preset until p is explicitly requested.
+  nextPurplePreset = 0;
   bool connected = false;
   if (NimBLEDevice::getNumBonds() == 1) {
     // Use the stored identity rather than silently pairing with another hub.
@@ -148,6 +160,19 @@ void setLight(uint8_t color) {
   writeTrainCommand(light, sizeof(light), "Light");
 }
 
+void selectNextPurplePreset() {
+  const uint8_t id = purplePresetIds[nextPurplePreset];
+  const uint8_t packet[] = {0x0B, 0x00, 0x81, 0x34, 0x11, 0x51,
+                            0x01, 0x06, 0x01, id, 0x00};
+  Serial.printf("Requesting purple preset: %s (0x%02X).\n",
+                purplePresetNames[nextPurplePreset], id);
+  if (writeTrainCommand(packet, sizeof(packet), "Purple preset")) {
+    Serial.println("Trigger the physical purple brick to check the selected action.");
+    nextPurplePreset = (nextPurplePreset + 1) % purplePresetCount;
+  }
+  // Failed/disconnected writes do not advance or queue a selection.
+}
+
 bool writeMotor(int8_t power) {
   // LWP3 motor port 0x32, direct mode 0; signed power -100..100.
   const uint8_t packet[] = {0x08, 0x00, 0x81, 0x32, 0x11, 0x51,
@@ -204,6 +229,7 @@ void serviceMovement() {
 }
 
 void printHelp() {
+  Serial.println("p=next purple preset: Night, Birthday, Beach, Rain, Cat, Nothing (wraps; recorded slot excluded)");
   Serial.println("Movement: w=forward +50, v=reverse -50 (2 seconds), x=STOP");
   Serial.println("Commands: c=connect/pair, s=status, b=horn, 1=white, 2=green, 3=red, 0=light off, d=disconnect, f=forget bonds, r=restart, h=help");
 }
@@ -250,6 +276,7 @@ void loop() {
       case 'c': connectTrain(); break;
       case 's': printStatus(); break;
       case 'b': playHorn(); break;
+      case 'p': selectNextPurplePreset(); break;
       case '1': setLight(0x01); break;
       case '2': setLight(0x07); break;
       case '3': setLight(0x0C); break;

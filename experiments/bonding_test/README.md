@@ -2,6 +2,12 @@
 
 A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data cable and the train are needed. It tests BLE connection, encryption, bonding, bond persistence, horn playback, and light colours. It now includes explicitly requested two-second motor tests.
 
+## Physical buttons and purple-brick presets
+
+For breadboard wiring and a separate Arduino sketch, open the [physical-button input test](../button_input_test/README.md). It supports both boards and verifies presses/releases before BLE controls are added.
+
+The [purple action-brick guide](../../docs/purple-action-brick-research.md) documents preset selection commands and remaining hardware checks. Send `p` in this sketch to test purple selection over serial before adding physical BLE buttons. See the [button plan](../../docs/physical-button-plan.md) for proposed assignments.
+
 ## Install and upload with Arduino IDE
 
 1. Install [Arduino IDE 2](https://www.arduino.cc/en/software).
@@ -56,6 +62,7 @@ A standalone Arduino sketch for the **Waveshare ESP32-S3-Zero**. Only a USB data
 | `s` | Print bond storage and current security status |
 | `1` / `2` / `3` | Set the train light to white / green / red |
 | `0` | Turn the train light off |
+| `p` | Select next purple-brick preset (Night → Birthday → Beach → Rain → Cat → Nothing → repeat) |
 | `b` | Play the horn (requires an encrypted, bonded connection) |
 | `d` | Disconnect; retain the bond |
 | `f` | Disconnect and delete **all ESP32-side BLE bonds** |
@@ -99,6 +106,22 @@ Verified light controls are saved in commit `b6e9b1d`. Upload this version witho
 A failed stop write is retried every 250 ms while connected. This is an ESP32-side timer, not a train-side watchdog: USB power loss, BLE loss, or a blocked BLE call can prevent or delay stop. If the train keeps moving, use its power button. Connection-loss behaviour is not yet verified; do not unplug the controller while testing on track.
 
 Motor packets follow the [10427 command encoder](https://github.com/micschr0/duplo-train-10427-ble2mqtt/blob/main/src/protocol/commands.rs), using port `0x32` and signed power. The user reported all movement tests working on the real train.
+
+## Next test: purple action-brick presets (virtual button)
+
+Use this existing sketch and Serial Monitor first; no button wiring is needed.
+
+1. Upload `bonding_test.ino` using the settings above, without erasing flash or changing partitions.
+2. Close the LEGO app, wake the train, and send `c` if needed. Send `x` to stop before changing presets.
+3. Send **`p`** once: the first request is **Night**, ID `0x03`. Trigger the train's sensor with the physical purple action brick and listen. Confirm whether this is lullaby; the source calls it Night.
+4. Send **`p`** again: **Birthday**, ID `0x04`. Trigger the purple brick again and check for Happy Birthday.
+5. Further `p` commands select **Beach → Rain → Cat → Nothing**, then wrap to Night. This is our test order, not a claim about the app's ordering. Check each selection individually; Nothing is expected to disable the assigned action, not necessarily stop a sound already playing.
+
+Each `p` is one virtual button press. It configures the purple action; it does not command immediate playback. Use a controlled area if running the train over the brick, and keep its power button accessible. The existing `w`/`v` tests remain limited to two seconds; `x` stops movement. Preset writes are rejected while a timed movement or stop retry is active.
+
+The cycle advances only after a successful BLE write; that does not confirm the train accepted the preset. A failed/disconnected request is not queued and does not advance. Reconnecting or rebooting resets the local cycle so the next `p` requests Night; no preset is sent automatically. The sketch does not read the train's current selection or save the cycle position in flash.
+
+Recorded sound (`0x06`) is excluded because it depends on an existing recording; this test cannot upload audio. These published commands are **not yet verified on our train**. See [the packet table and sources](../../docs/purple-action-brick-research.md). Report the printed preset name and what the train does after encountering the brick.
 
 ## Limits and troubleshooting
 
