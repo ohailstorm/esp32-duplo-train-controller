@@ -118,7 +118,7 @@ The sketch waits for 25 ms of stable input, so extremely short taps may be ignor
 
 ## Train controls and the purple brick
 
-Test purple presets first with **`p` in the [virtual-button BLE sketch](../bonding_test/README.md#next-test-purple-action-brick-presets-virtual-button)**. After the serial-command and wiring checks pass, the next stage is a separate BLE button remote; this sketch does not yet assign train actions to buttons. Candidate layout: **horn / light cycle / next purple preset / stop**, with motion later controlled by the lever. See the [button plan and command choices](../../docs/physical-button-plan.md).
+Test purple presets first with **`p` in the [virtual-button BLE sketch](../bonding_test/README.md#next-test-purple-action-brick-presets-virtual-button)**. A separate [B1 horn experiment](../button_horn_test/README.md) is now available after wiring checks pass; this sketch does not yet assign train actions to buttons. Candidate layout: **horn / light cycle / next purple preset / stop**, with motion later controlled by the lever. See the [button plan and command choices](../../docs/physical-button-plan.md).
 
 The [purple action-brick documentation](../../docs/purple-action-brick-research.md) contains the published selection packet and preset IDs: nothing, beach, cat, night, birthday, rain, recorded sound. Each future button press should select the next preset and wrap at the end. These selections still need testing on our train; “night” is not yet confirmed as lullaby. Selection configures the purple brick's action, rather than promising immediate sound playback. Recording/uploading custom audio is not implemented.
 
@@ -131,3 +131,7 @@ Compiled with ESP32 core 3.3.12 for both ESP32S3 Dev Module and XIAO_ESP32C3. A 
 The user reports the input test working after correcting the board and USB settings. For S3-Zero use **ESP32S3 Dev Module**, **USB CDC On Boot: Enabled**, and **USB Mode: Hardware CDC and JTAG**. Changing board selection can reset USB CDC to Disabled. Reupload after changing it, then reselect the port and open Serial Monitor at 115200 baud. A successful upload alone does not mean serial output is routed to USB.
 
 A normal press needs only 25 ms of stable contact, not a one-second hold. Use GPIO numbers printed on the board, not header positions. With the input sketch running, a direct GPIO4-to-GND jumper should generate a B1 press; removing it generates release. A jumper held at boot prevents `B1 ready` until removed. Check continuity only with power disconnected; use DC volts for powered measurements.
+
+## Next experiment
+
+With inputs working, upload the [physical button horn test](../button_horn_test/README.md). It uses the same B1 wiring and adds bonded BLE horn control.

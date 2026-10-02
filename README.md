@@ -6,6 +6,8 @@ All work in Codex should be in English: prompts, plans, responses, code, file an
 
 ## Tests and guides
 
+- [Physical button horn test](experiments/button_horn_test/README.md) — B1 triggers the train horn over BLE.
+
 - [Physical button test: wiring, upload, and checks](experiments/button_input_test/README.md) — start here for your breadboard; supports S3-Zero and XIAO ESP32-C3.
 - [BLE bonding, horn, lights, and movement test](experiments/bonding_test/README.md).
 - [Purple action brick: preset commands and research](docs/purple-action-brick-research.md).

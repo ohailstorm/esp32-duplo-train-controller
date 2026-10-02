@@ -6,7 +6,7 @@ Movement checkpoint: `daddd31`. The user confirmed bonding, reconnection after a
 
 Continue initial breadboard experiments on the USB-powered Waveshare ESP32-S3-Zero already in use. Port to XIAO ESP32-C3 before final wiring and enclosure assembly; it needs a fresh bond and its own pin assignments.
 
-The [standalone button-input experiment](../experiments/button_input_test/README.md) now includes breadboard wiring, both board pin maps, Arduino upload instructions, and press/release checks. The bonding sketch still only reads serial commands; BLE button integration remains a later stage.
+The [standalone button-input experiment](../experiments/button_input_test/README.md) now includes breadboard wiring, both board pin maps, Arduino upload instructions, and press/release checks. The bonding sketch still only reads serial commands; The [physical horn experiment](../experiments/button_horn_test/README.md) now connects B1 to BLE horn playback; additional button actions remain a later stage.
 
 The user has a breadboard for these tests. A purple-preset cycle button is also a candidate: each press selects the next preset and wraps at the end; see [purple action-brick research](purple-action-brick-research.md). That research now includes published purple preset configuration packets and a project reporting 10427 support. Preset selection needs testing on our train; playback/cancellation controls are not required for this button.
 
